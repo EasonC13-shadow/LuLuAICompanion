@@ -31,11 +31,44 @@ class AnalysisViewModel: ObservableObject {
         self.risks = analysis.risks
         self.knownService = analysis.knownService
         self.isLoadingAnalysis = false
+        self.errorMessage = nil
     }
     
     func setError(_ message: String) {
         self.errorMessage = message
         self.isLoadingAnalysis = false
+    }
+    
+    func retry() {
+        // Reset state and re-analyze
+        self.isLoadingAnalysis = true
+        self.errorMessage = nil
+        self.recommendation = .unknown
+        self.confidence = 0
+        self.summary = ""
+        self.details = ""
+        self.risks = []
+        self.knownService = nil
+        
+        Task {
+            let client = ClaudeAPIClient.shared
+            if client.hasAPIKey {
+                do {
+                    let analysis = try await client.analyzeConnection(self.alert)
+                    await MainActor.run {
+                        self.updateAnalysis(analysis)
+                    }
+                } catch {
+                    await MainActor.run {
+                        self.setError(error.localizedDescription)
+                    }
+                }
+            } else {
+                await MainActor.run {
+                    self.setError("No API key configured.")
+                }
+            }
+        }
     }
 }
 
@@ -107,6 +140,17 @@ struct AnalysisView: View {
                                 .foregroundColor(.red)
                             Text(error)
                                 .foregroundColor(.red)
+                            
+                            Spacer()
+                            
+                            Button(action: { viewModel.retry() }) {
+                                HStack(spacing: 4) {
+                                    Image(systemName: "arrow.clockwise")
+                                    Text("Retry")
+                                }
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .controlSize(.small)
                         }
                         
                         // Show key input if it's an API key error
