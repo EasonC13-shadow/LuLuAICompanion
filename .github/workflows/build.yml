@@ -31,6 +31,11 @@ jobs:
           CERTIFICATE_BASE64: ${{ secrets.SIGNING_CERTIFICATE_BASE64 }}
           CERTIFICATE_PASSWORD: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}
         run: |
+          # Debug: show lengths (not content) of secrets
+          echo "Certificate base64 length: ${#CERTIFICATE_BASE64}"
+          echo "Password length: ${#CERTIFICATE_PASSWORD}"
+          echo "First 20 chars of base64: ${CERTIFICATE_BASE64:0:20}"
+          
           # Create temporary keychain
           KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
           KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
@@ -39,9 +44,14 @@ jobs:
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
           
-          # Import certificate
+          # Import certificate - use printf to avoid echo adding newline issues
           CERT_PATH=$RUNNER_TEMP/certificate.p12
-          echo "$CERTIFICATE_BASE64" | base64 --decode > "$CERT_PATH"
+          printf "%s" "$CERTIFICATE_BASE64" | base64 -D > "$CERT_PATH"
+          
+          echo "Decoded cert file size: $(wc -c < "$CERT_PATH")"
+          
+          # Verify the p12 can be read with openssl first
+          openssl pkcs12 -info -in "$CERT_PATH" -passin pass:"$CERTIFICATE_PASSWORD" -noout 2>&1 || echo "OpenSSL verify failed"
           
           security import "$CERT_PATH" -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
           security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain

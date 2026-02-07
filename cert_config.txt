@@ -1,0 +1,14 @@
+[ req ]
+default_bits = 2048
+prompt = no
+default_md = sha256
+distinguished_name = dn
+
+[ dn ]
+CN = LuLuAICompanion Developer
+O = LuLuAI
+C = TW
+
+[ v3_code_sign ]
+keyUsage = critical, digitalSignature
+extendedKeyUsage = codeSigning
