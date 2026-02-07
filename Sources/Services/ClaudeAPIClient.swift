@@ -196,8 +196,20 @@ class ClaudeAPIClient: ObservableObject {
         var request = URLRequest(url: URL(string: baseURL)!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        
+        // Detect OAuth token vs API key and use appropriate header
+        if apiKey.hasPrefix("sk-ant-oat") {
+            // OAuth token - use Authorization Bearer header
+            request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
+            request.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
+            print("Using OAuth token auth")
+        } else {
+            // Regular API key - use x-api-key header
+            request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+            print("Using API key auth")
+        }
+        
         request.timeoutInterval = 30
         
         let body: [String: Any] = [
