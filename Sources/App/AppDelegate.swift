@@ -160,6 +160,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         await MainActor.run { [weak viewModel] in
                             viewModel?.updateAnalysis(analysis)
                         }
+                        
+                        // Step 3: Send to OpenClaw for remote management (if enabled)
+                        OpenClawIntegration.shared.sendAlert(enrichedAlert, analysis: analysis)
+                        
                     } catch let error as ClaudeAPIClient.APIError {
                         print("Analysis error: \(error)")
                         
