@@ -26,6 +26,32 @@ jobs:
       - name: Generate Project
         run: xcodegen generate
       
+      - name: Import Code Signing Certificate
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.SIGNING_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}
+        run: |
+          # Create temporary keychain
+          KEYCHAIN_PATH=$RUNNER_TEMP/build.keychain
+          KEYCHAIN_PASSWORD=$(openssl rand -base64 32)
+          
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          
+          # Import certificate
+          CERT_PATH=$RUNNER_TEMP/certificate.p12
+          echo "$CERTIFICATE_BASE64" | base64 --decode > "$CERT_PATH"
+          
+          security import "$CERT_PATH" -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain
+          
+          # Allow codesign to access keychain
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          
+          # Find and display certificate identity
+          security find-identity -v -p codesigning "$KEYCHAIN_PATH"
+      
       - name: Build
         run: |
           xcodebuild -project LuLuAICompanion.xcodeproj \
@@ -33,9 +59,14 @@ jobs:
             -configuration Release \
             -archivePath build/LuLuAICompanion.xcarchive \
             archive \
-            CODE_SIGN_IDENTITY="-" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGN_IDENTITY="LuLuAICompanion Developer" \
+            CODE_SIGNING_REQUIRED=YES \
+            CODE_SIGNING_ALLOWED=YES \
+            OTHER_CODE_SIGN_FLAGS="--keychain $RUNNER_TEMP/build.keychain"
+      
+      - name: Verify Signature
+        run: |
+          codesign -dv --verbose=4 build/LuLuAICompanion.xcarchive/Products/Applications/LuLuAICompanion.app
       
       - name: Create DMG
         run: |
