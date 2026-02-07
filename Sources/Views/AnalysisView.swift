@@ -99,13 +99,20 @@ struct AnalysisView: View {
                 .background(recommendationColor.opacity(0.1))
                 .cornerRadius(12)
                 
-                // Error message
+                // Error message with inline key input
                 if let error = viewModel.errorMessage {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.red)
-                        Text(error)
-                            .foregroundColor(.red)
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.red)
+                            Text(error)
+                                .foregroundColor(.red)
+                        }
+                        
+                        // Show key input if it's an API key error
+                        if error.contains("API key") || error.contains("invalid") || error.contains("401") {
+                            APIKeyInputSection(claudeClient: ClaudeAPIClient.shared)
+                        }
                     }
                     .padding()
                     .background(Color.red.opacity(0.1))
@@ -212,6 +219,121 @@ struct DetailRow: View {
                 .textSelection(.enabled)
             
             Spacer()
+        }
+    }
+}
+
+// MARK: - Inline API Key Input
+
+struct APIKeyInputSection: View {
+    @ObservedObject var claudeClient: ClaudeAPIClient
+    @State private var newKey: String = ""
+    @State private var showKey = false
+    @State private var statusMessage: String?
+    @State private var showingKeys = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Divider()
+            
+            Text("Add API Key")
+                .font(.caption)
+                .fontWeight(.medium)
+            
+            // Key input
+            HStack {
+                if showKey {
+                    TextField("sk-ant-api03-...", text: $newKey)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.system(.caption, design: .monospaced))
+                } else {
+                    SecureField("sk-ant-api03-...", text: $newKey)
+                        .textFieldStyle(.roundedBorder)
+                        .font(.caption)
+                }
+                
+                Button(action: { showKey.toggle() }) {
+                    Image(systemName: showKey ? "eye.slash" : "eye")
+                        .font(.caption)
+                }
+                .buttonStyle(.borderless)
+                
+                Button(action: addKey) {
+                    Image(systemName: "plus.circle.fill")
+                        .foregroundColor(.green)
+                }
+                .buttonStyle(.borderless)
+                .disabled(newKey.isEmpty)
+            }
+            
+            // Status or instructions
+            if let status = statusMessage {
+                Text(status)
+                    .font(.caption2)
+                    .foregroundColor(status.contains("✓") ? .green : .orange)
+            }
+            
+            // Show configured keys
+            DisclosureGroup("Keys: \(claudeClient.apiKeysConfigured) configured", isExpanded: $showingKeys) {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(claudeClient.listKeys(), id: \.slot) { keyInfo in
+                        if keyInfo.hasKey {
+                            HStack {
+                                Text(keyInfo.prefix ?? "sk-ant-...")
+                                    .font(.caption2.monospaced())
+                                Spacer()
+                                Button(action: {
+                                    claudeClient.removeAPIKey(slot: keyInfo.slot)
+                                }) {
+                                    Image(systemName: "trash")
+                                        .font(.caption2)
+                                        .foregroundColor(.red)
+                                }
+                                .buttonStyle(.borderless)
+                            }
+                        }
+                    }
+                }
+                .padding(.top, 4)
+            }
+            .font(.caption2)
+            
+            // Help text
+            HStack {
+                Text("Or run:")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                Text("claude setup-token")
+                    .font(.caption2.monospaced())
+                    .foregroundColor(.blue)
+                    .textSelection(.enabled)
+            }
+            
+            Link(destination: URL(string: "https://console.anthropic.com/")!) {
+                HStack {
+                    Image(systemName: "arrow.up.right.square")
+                    Text("Get API Key")
+                }
+                .font(.caption2)
+            }
+        }
+    }
+    
+    private func addKey() {
+        guard !newKey.isEmpty else { return }
+        
+        if !newKey.hasPrefix("sk-ant-") {
+            statusMessage = "⚠️ Invalid format"
+            return
+        }
+        
+        let slot = claudeClient.nextAvailableSlot()
+        claudeClient.addAPIKey(newKey, slot: slot)
+        newKey = ""
+        statusMessage = "✓ Key added! Retry the analysis."
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            statusMessage = nil
         }
     }
 }
