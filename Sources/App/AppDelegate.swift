@@ -8,6 +8,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var welcomeWindow: NSWindow?
     private var currentViewModel: AnalysisViewModel?
     private var luluWindowMonitorTimer: Timer?
+    private var initialLuLuWindowSize: CGSize?  // Track initial alert window size
     
     private let monitor = AccessibilityMonitor.shared
     private let claudeClient = ClaudeAPIClient.shared
@@ -227,34 +228,55 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - LuLu Window Monitor
     
     private func startLuLuWindowMonitor() {
-        // Wait 5 seconds before starting to monitor (give time for LuLu to show its window)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) { [weak self] in
+        // Reset initial window size
+        initialLuLuWindowSize = nil
+        
+        // Wait 3 seconds before starting to monitor
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) { [weak self] in
             guard let self = self else { return }
             
-            print("[DEBUG] Starting LuLu window monitor after 5s delay")
+            print("[DEBUG] Starting LuLu window monitor after 3s delay")
             
-            // Check every 2 seconds if LuLu alert window is still visible
-            self.luluWindowMonitorTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            // Check every 1.5 seconds
+            self.luluWindowMonitorTimer = Timer.scheduledTimer(withTimeInterval: 1.5, repeats: true) { [weak self] _ in
                 guard let self = self else { return }
                 
-                let luluVisible = self.isLuLuAlertWindowVisible()
+                let currentSize = self.getLuLuAlertWindowSize()
                 let analysisComplete = !(self.currentViewModel?.isLoadingAnalysis ?? true)
                 
-                print("[DEBUG] Monitor check: LuLu visible=\(luluVisible), analysis complete=\(analysisComplete)")
+                // Store initial size on first detection
+                if self.initialLuLuWindowSize == nil, let size = currentSize {
+                    self.initialLuLuWindowSize = size
+                    print("[DEBUG] Initial LuLu window size: \(size.width)x\(size.height)")
+                }
                 
-                // Only auto-close if:
-                // 1. LuLu window is gone AND
-                // 2. Analysis is complete (not loading)
-                if !luluVisible && analysisComplete {
+                // Consider alert dismissed if:
+                // 1. No large LuLu window found, OR
+                // 2. Window size changed significantly (decreased by >100px in either dimension)
+                var alertDismissed = (currentSize == nil)
+                
+                if let initial = self.initialLuLuWindowSize, let current = currentSize {
+                    let widthDiff = initial.width - current.width
+                    let heightDiff = initial.height - current.height
+                    if widthDiff > 100 || heightDiff > 100 {
+                        alertDismissed = true
+                        print("[DEBUG] Window size changed significantly: \(initial.width)x\(initial.height) -> \(current.width)x\(current.height)")
+                    }
+                }
+                
+                print("[DEBUG] Monitor: size=\(currentSize?.width ?? 0)x\(currentSize?.height ?? 0), dismissed=\(alertDismissed), complete=\(analysisComplete)")
+                
+                if alertDismissed && analysisComplete {
                     DispatchQueue.main.async {
                         self.luluWindowMonitorTimer?.invalidate()
                         self.luluWindowMonitorTimer = nil
+                        self.initialLuLuWindowSize = nil
                         
                         if let window = self.analysisWindow {
                             window.close()
                             self.analysisWindow = nil
                             self.currentViewModel = nil
-                            print("[DEBUG] Auto-closed analysis window (LuLu dismissed + analysis done)")
+                            print("[DEBUG] Auto-closed analysis window")
                         }
                     }
                 }
@@ -262,9 +284,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
     
-    private func isLuLuAlertWindowVisible() -> Bool {
+    private func getLuLuAlertWindowSize() -> CGSize? {
         guard let windows = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else {
-            return false
+            return nil
         }
         
         for window in windows {
@@ -275,15 +297,16 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 let width = bounds?["Width"] as? CGFloat ?? 0
                 
                 // Only consider windows larger than 100x100 as alert windows
-                // (filters out menu bar icons which are ~30x24)
                 if width > 100 && height > 100 {
-                    print("[DEBUG] Found LuLu ALERT window: size=\(width)x\(height)")
-                    return true
+                    return CGSize(width: width, height: height)
                 }
             }
         }
         
-        print("[DEBUG] No LuLu alert window found (only menu bar)")
-        return false
+        return nil
+    }
+    
+    private func isLuLuAlertWindowVisible() -> Bool {
+        return getLuLuAlertWindowSize() != nil
     }
 }
