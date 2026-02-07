@@ -7,6 +7,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var analysisWindow: NSWindow?
     private var welcomeWindow: NSWindow?
     private var currentViewModel: AnalysisViewModel?
+    private var luluWindowMonitorTimer: Timer?
     
     private let monitor = AccessibilityMonitor.shared
     private let claudeClient = ClaudeAPIClient.shared
@@ -195,6 +196,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             analysisWindow = nil
         }
         
+        // Stop any existing timer
+        luluWindowMonitorTimer?.invalidate()
+        luluWindowMonitorTimer = nil
+        
         let contentView = AnalysisView(viewModel: viewModel)
         
         let window = NSWindow(
@@ -214,5 +219,58 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         self.analysisWindow = window
         
         NSApp.activate(ignoringOtherApps: true)
+        
+        // Start monitoring LuLu window - close our window if LuLu alert is dismissed
+        startLuLuWindowMonitor()
+    }
+    
+    // MARK: - LuLu Window Monitor
+    
+    private func startLuLuWindowMonitor() {
+        // Check every 0.5 seconds if LuLu alert window is still visible
+        luluWindowMonitorTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
+            
+            if !self.isLuLuAlertWindowVisible() {
+                // LuLu window closed, close our analysis window too
+                DispatchQueue.main.async {
+                    self.luluWindowMonitorTimer?.invalidate()
+                    self.luluWindowMonitorTimer = nil
+                    
+                    if let window = self.analysisWindow {
+                        window.close()
+                        self.analysisWindow = nil
+                        self.currentViewModel = nil
+                        print("[DEBUG] Auto-closed analysis window (LuLu alert dismissed)")
+                    }
+                }
+            }
+        }
+    }
+    
+    private func isLuLuAlertWindowVisible() -> Bool {
+        // Get all windows for LuLu app
+        let luluBundleId = "com.objective-see.lulu.app"
+        
+        guard let apps = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID) as? [[String: Any]] else {
+            return false
+        }
+        
+        for app in apps {
+            if let ownerName = app[kCGWindowOwnerName as String] as? String,
+               ownerName.lowercased().contains("lulu") {
+                // Check if it's an alert window (not the main app window)
+                if let windowName = app[kCGWindowName as String] as? String,
+                   windowName.lowercased().contains("alert") || windowName.isEmpty {
+                    // Also check window size - LuLu alerts are typically small
+                    if let bounds = app[kCGWindowBounds as String] as? [String: CGFloat],
+                       let height = bounds["Height"], height < 400 {
+                        return true
+                    }
+                }
+            }
+        }
+        
+        return false
     }
 }
