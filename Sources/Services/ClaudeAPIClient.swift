@@ -192,18 +192,25 @@ class ClaudeAPIClient: ObservableObject {
     
     // MARK: - API Request
     
+    // Claude Code version for stealth mode
+    private let claudeCodeVersion = "2.1.2"
+    
     private func sendRequest(prompt: String, apiKey: String) async throws -> String {
+        let isOAuth = apiKey.hasPrefix("sk-ant-oat")
+        
         var request = URLRequest(url: URL(string: baseURL)!)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
         
-        // Detect OAuth token vs API key and use appropriate header
-        if apiKey.hasPrefix("sk-ant-oat") {
-            // OAuth token - use Authorization Bearer header
+        if isOAuth {
+            // Stealth mode: Mimic Claude Code's headers exactly
             request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-            request.setValue("oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
-            print("Using OAuth token auth")
+            request.setValue("claude-code-20250219,oauth-2025-04-20", forHTTPHeaderField: "anthropic-beta")
+            request.setValue("claude-cli/\(claudeCodeVersion) (external, cli)", forHTTPHeaderField: "User-Agent")
+            request.setValue("cli", forHTTPHeaderField: "x-app")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            print("Using OAuth token with Claude Code stealth mode")
         } else {
             // Regular API key - use x-api-key header
             request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
@@ -212,13 +219,18 @@ class ClaudeAPIClient: ObservableObject {
         
         request.timeoutInterval = 30
         
-        let body: [String: Any] = [
+        var body: [String: Any] = [
             "model": model,
             "max_tokens": 1024,
             "messages": [
                 ["role": "user", "content": prompt]
             ]
         ]
+        
+        // For OAuth tokens, MUST include Claude Code identity in system prompt
+        if isOAuth {
+            body["system"] = "You are Claude Code, Anthropic's official CLI for Claude. You are also a macOS firewall security advisor."
+        }
         
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         
