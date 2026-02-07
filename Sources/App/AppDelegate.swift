@@ -227,21 +227,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - LuLu Window Monitor
     
     private func startLuLuWindowMonitor() {
-        // Check every 0.5 seconds if LuLu alert window is still visible
-        luluWindowMonitorTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { [weak self] _ in
+        // Wait a bit before starting to monitor (give time for analysis to begin)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
             guard let self = self else { return }
             
-            if !self.isLuLuAlertWindowVisible() {
-                // LuLu window closed, close our analysis window too
-                DispatchQueue.main.async {
-                    self.luluWindowMonitorTimer?.invalidate()
-                    self.luluWindowMonitorTimer = nil
-                    
-                    if let window = self.analysisWindow {
-                        window.close()
-                        self.analysisWindow = nil
-                        self.currentViewModel = nil
-                        print("[DEBUG] Auto-closed analysis window (LuLu alert dismissed)")
+            // Check every 1 second if LuLu alert window is still visible
+            // Only auto-close if analysis is DONE (not loading)
+            self.luluWindowMonitorTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+                guard let self = self else { return }
+                
+                // Only auto-close if:
+                // 1. LuLu window is gone AND
+                // 2. Analysis is complete (not loading)
+                let analysisComplete = !(self.currentViewModel?.isLoadingAnalysis ?? true)
+                
+                if !self.isLuLuAlertWindowVisible() && analysisComplete {
+                    DispatchQueue.main.async {
+                        self.luluWindowMonitorTimer?.invalidate()
+                        self.luluWindowMonitorTimer = nil
+                        
+                        if let window = self.analysisWindow {
+                            window.close()
+                            self.analysisWindow = nil
+                            self.currentViewModel = nil
+                            print("[DEBUG] Auto-closed analysis window (LuLu alert dismissed + analysis complete)")
+                        }
                     }
                 }
             }
