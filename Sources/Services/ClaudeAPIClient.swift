@@ -51,11 +51,20 @@ class ClaudeAPIClient: ObservableObject {
     
     // MARK: - Key Management (for CLI and UI)
     
-    /// Add a new API key
+    /// Add a new API key (auto-cleans whitespace)
     func addAPIKey(_ key: String, slot: Int = 0) {
+        // Clean the key - remove all whitespace and newlines
+        let cleanedKey = key.components(separatedBy: .whitespacesAndNewlines).joined()
+        
+        guard !cleanedKey.isEmpty else {
+            print("Error: Empty key after cleaning")
+            return
+        }
+        
         let keyName = slot == 0 ? "claude_api_key" : "claude_api_key_\(slot)"
-        KeychainHelper.save(key: keyName, value: key)
+        KeychainHelper.save(key: keyName, value: cleanedKey)
         refreshKeyCount()
+        print("Saved key to slot \(slot): \(String(cleanedKey.prefix(15)))...")
     }
     
     /// Remove an API key

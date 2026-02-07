@@ -366,17 +366,20 @@ struct APIKeyInputSection: View {
     private func addKey() {
         guard !newKey.isEmpty else { return }
         
-        if !newKey.hasPrefix("sk-ant-") {
-            statusMessage = "⚠️ Invalid format"
+        // Clean the key first
+        let cleanedKey = newKey.components(separatedBy: .whitespacesAndNewlines).joined()
+        
+        if !cleanedKey.hasPrefix("sk-ant-") {
+            statusMessage = "⚠️ Invalid format (should start with sk-ant-)"
             return
         }
         
         let slot = claudeClient.nextAvailableSlot()
-        claudeClient.addAPIKey(newKey, slot: slot)
+        claudeClient.addAPIKey(cleanedKey, slot: slot)
         newKey = ""
-        statusMessage = "✓ Key added! Retry the analysis."
+        statusMessage = "✓ Key added! Click Retry."
         
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
             statusMessage = nil
         }
     }
