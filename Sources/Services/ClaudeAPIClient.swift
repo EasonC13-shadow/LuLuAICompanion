@@ -12,7 +12,7 @@ class ClaudeAPIClient: ObservableObject {
     
     /// Determine which endpoint to use based on API key prefix
     private func getBaseURL(for apiKey: String) -> String {
-        if apiKey.hasPrefix("mateapikey") {
+        if apiKey.hasPrefix("3mate") {
             return luluaiURL  // LuLuAI Platform
         } else {
             return anthropicURL  // Original Anthropic API
@@ -211,7 +211,7 @@ class ClaudeAPIClient: ObservableObject {
     
     private func sendRequest(prompt: String, apiKey: String) async throws -> String {
         let isOAuth = apiKey.hasPrefix("sk-ant-oat")
-        let isLuLuAI = apiKey.hasPrefix("mateapikey")
+        let isLuLuAI = apiKey.hasPrefix("3mate")
         let baseURL = getBaseURL(for: apiKey)
         
         // Debug: Log key info
