@@ -6,7 +6,8 @@ class ClaudeAPIClient: ObservableObject {
     @Published var lastError: String?
     @Published var apiKeysConfigured: Int = 0
     
-    private let baseURL = "https://api.anthropic.com/v1/messages"
+    // LuLuAI Platform - Sui Tunnel powered API
+    private let baseURL = "https://platform.3mate.io/v1/messages"
     private let model = "claude-sonnet-4-20250514"
     
     static let shared = ClaudeAPIClient()
