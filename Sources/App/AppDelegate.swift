@@ -95,7 +95,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         
         if let button = statusItem.button {
-            button.image = NSImage(systemSymbolName: "shield.checkered", accessibilityDescription: "LuLu AI")
+            // Use custom LuLuAI icon from assets
+            if let image = NSImage(named: "MenuBarIcon") {
+                image.size = NSSize(width: 18, height: 18)
+                button.image = image
+            } else {
+                // Fallback to system icon
+                button.image = NSImage(systemSymbolName: "shield.checkered", accessibilityDescription: "LuLu AI")
+            }
             button.action = #selector(togglePopover)
         }
         
