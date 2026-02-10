@@ -4,6 +4,7 @@ struct StatusBarView: View {
     @ObservedObject private var monitor = AccessibilityMonitor.shared
     @ObservedObject private var claudeClient = ClaudeAPIClient.shared
     @State private var showingSettings = false
+    @State private var showingAccessibilityHelp = false
     
     var onShowWelcome: (() -> Void)?
     
@@ -29,7 +30,8 @@ struct StatusBarView: View {
                     status: monitor.accessibilityEnabled ? "Enabled" : "Not Enabled",
                     isOK: monitor.accessibilityEnabled,
                     action: monitor.accessibilityEnabled ? nil : {
-                        _ = monitor.checkAccessibilityPermission()
+                        showingAccessibilityHelp = true
+                        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
                     }
                 )
                 
@@ -112,6 +114,11 @@ struct StatusBarView: View {
         .sheet(isPresented: $showingSettings) {
             SettingsView()
                 .frame(width: 450, height: 450)
+        }
+        .alert("Accessibility Permission", isPresented: $showingAccessibilityHelp) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("If you reinstalled the app:\n\n1. Find \"LuLuAICompanion\" in the Privacy list\n2. Remove it with the \"-\" button\n3. Re-add the app with \"+\"\n4. Toggle the switch ON")
         }
     }
 }
