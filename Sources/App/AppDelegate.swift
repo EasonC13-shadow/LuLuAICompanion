@@ -329,7 +329,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         
         for window in windows {
             if let ownerName = window[kCGWindowOwnerName as String] as? String,
-               ownerName.lowercased().contains("lulu") {
+               ownerName == "LuLu" {
                 let bounds = window[kCGWindowBounds as String] as? [String: Any]
                 let height = bounds?["Height"] as? CGFloat ?? 0
                 let width = bounds?["Width"] as? CGFloat ?? 0
