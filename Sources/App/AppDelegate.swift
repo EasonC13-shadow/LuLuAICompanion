@@ -205,7 +205,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                         let analysis = try await self.aiClient.analyzeConnection(enrichedAlert)
                         await MainActor.run { [weak viewModel] in
                             viewModel?.updateAnalysis(analysis)
-                            HistoryManager.shared.save(alert: enrichedAlert, analysis: analysis)
+                            HistoryManager.shared.save(alert: enrichedAlert, analysis: analysis, model: self.aiClient.lastUsedModel)
                         }
                     } catch let error as AIClient.APIError {
                         print("Analysis error: \(error)")

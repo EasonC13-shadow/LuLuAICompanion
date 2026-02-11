@@ -109,9 +109,16 @@ struct HistoryView: View {
                                 .padding(.vertical, 4)
                             }
                             
-                            Text(entry.formattedTimestamp)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            HStack {
+                                Text(entry.formattedTimestamp)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                if let model = entry.model {
+                                    Text("Model: \(model)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
                         }
                         .padding()
                     }

@@ -56,6 +56,7 @@ class AIClient: ObservableObject {
     @Published var isAnalyzing = false
     @Published var lastError: String?
     @Published var apiKeysConfigured: Int = 0
+    var lastUsedModel: String?
     
     // API endpoints
     private let anthropicURL = "https://api.anthropic.com/v1/messages"
@@ -178,6 +179,7 @@ class AIClient: ObservableObject {
                 let response = try await sendRequest(prompt: prompt, apiKey: key)
                 let analysis = parseResponse(response, for: alert)
                 
+                lastUsedModel = provider.model
                 if index > 0 {
                     print("Key \(index + 1) [\(provider.rawValue)] succeeded after \(index) failures")
                 }

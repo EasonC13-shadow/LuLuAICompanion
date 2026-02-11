@@ -27,7 +27,7 @@ class HistoryManager: ObservableObject {
     
     // MARK: - Public API
     
-    func save(alert: ConnectionAlert, analysis: AIAnalysis) {
+    func save(alert: ConnectionAlert, analysis: AIAnalysis, model: String? = nil) {
         let entry = HistoryEntry(
             timestamp: Date(),
             processName: alert.processName,
@@ -41,7 +41,8 @@ class HistoryManager: ObservableObject {
             summary: analysis.summary,
             details: analysis.details,
             risks: analysis.risks,
-            knownService: analysis.knownService
+            knownService: analysis.knownService,
+            model: model
         )
         entries.insert(entry, at: 0)
         trim()
@@ -94,10 +95,11 @@ struct HistoryEntry: Codable, Identifiable {
     let details: String
     let risks: [String]
     let knownService: String?
+    let model: String?
     
     init(timestamp: Date, processName: String, processPath: String, ipAddress: String,
          port: String, proto: String, reverseDNS: String, recommendation: String,
-         confidence: Double, summary: String, details: String, risks: [String], knownService: String?) {
+         confidence: Double, summary: String, details: String, risks: [String], knownService: String?, model: String? = nil) {
         self.id = UUID()
         self.timestamp = timestamp
         self.processName = processName
@@ -112,6 +114,7 @@ struct HistoryEntry: Codable, Identifiable {
         self.details = details
         self.risks = risks
         self.knownService = knownService
+        self.model = model
     }
     
     var recommendationEmoji: String {
@@ -134,7 +137,7 @@ struct HistoryEntry: Codable, Identifiable {
     }
     
     var pickerLabel: String {
-        "\(recommendationEmoji) \(recommendation.uppercased()) \(displayHost) (\(formattedTimestamp))"
+        "\(recommendationEmoji) \(recommendation.uppercased()) \(displayHost) (\(formattedTimestamp))\(model != nil ? " [\(model!)]" : "")"
     }
 }
 
