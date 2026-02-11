@@ -18,7 +18,7 @@ class ClaudeAPIClient: ObservableObject {
             return anthropicURL  // Original Anthropic API
         }
     }
-    private let model = "claude-haiku-4-5-20241022"
+    private let model = "claude-haiku-4-5-20251001"
     
     static let shared = ClaudeAPIClient()
     
