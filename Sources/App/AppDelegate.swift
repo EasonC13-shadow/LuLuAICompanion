@@ -259,15 +259,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 
                 // Consider alert dismissed if:
                 // 1. No large LuLu window found, OR
-                // 2. Window size changed significantly (decreased by >100px in either dimension)
+                // 2. Window size changed by more than 10px in either dimension (not strict, just detects dismiss)
                 var alertDismissed = (currentSize == nil)
                 
                 if let initial = self.initialLuLuWindowSize, let current = currentSize {
-                    let widthDiff = initial.width - current.width
-                    let heightDiff = initial.height - current.height
-                    if widthDiff > 100 || heightDiff > 100 {
+                    let widthDiff = abs(initial.width - current.width)
+                    let heightDiff = abs(initial.height - current.height)
+                    if widthDiff > 10 || heightDiff > 10 {
                         alertDismissed = true
-                        print("[DEBUG] Window size changed significantly: \(initial.width)x\(initial.height) -> \(current.width)x\(current.height)")
+                        print("[DEBUG] Window size changed: \(initial.width)x\(initial.height) -> \(current.width)x\(current.height)")
                     }
                 }
                 
