@@ -36,9 +36,9 @@ if args.count > 1 {
             print("No API keys configured")
         } else {
             print("Configured API keys:")
-            for (slot, hasKey, prefix) in keys {
-                if hasKey {
-                    print("  Slot \(slot): \(prefix ?? "***")")
+            for keyInfo in keys {
+                if keyInfo.hasKey {
+                    print("  Slot \(keyInfo.slot): \(keyInfo.prefix ?? "***") [\(keyInfo.provider?.rawValue ?? "unknown")]")
                 }
             }
         }

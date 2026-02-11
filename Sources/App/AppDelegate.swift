@@ -351,7 +351,3 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return getLuLuAlertWindowSize() != nil
     }
 }
-   private func isLuLuAlertWindowVisible() -> Bool {
-        return getLuLuAlertWindowSize() != nil
-    }
-}
