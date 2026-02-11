@@ -116,11 +116,6 @@ class AccessibilityMonitor: ObservableObject {
             }
         }
         
-        print("DEBUG: Extracted \(texts.count) text elements from LuLu alert")
-        for (i, t) in texts.enumerated() {
-            print("  [\(i)] \(t)")
-        }
-        
         // Basic parsing for display purposes - Claude will do the real analysis
         var processName = ""
         var processPath = ""
@@ -179,9 +174,6 @@ class AccessibilityMonitor: ObservableObject {
             rawTexts: texts
         )
         
-        print("DEBUG: Created alert with \(texts.count) raw texts")
-        print("DEBUG: Basic parse - ip:\(ipAddress), port:\(port), process:\(processName)")
-        
         // Trigger if we have data (IP or enough raw texts)
         // Only compare key fields, NOT rawTexts (dropdown changes would cause refresh)
         let hasData = !ipAddress.isEmpty || texts.count > 5
@@ -190,6 +182,8 @@ class AccessibilityMonitor: ObservableObject {
                           processName != lastAlert?.processName ||
                           processID != lastAlert?.processID
         if hasData && isDifferent {
+            print("DEBUG: Extracted \(texts.count) text elements from LuLu alert")
+            print("DEBUG: Basic parse - ip:\(ipAddress), port:\(port), process:\(processName)")
             print("Detected LuLu Alert: \(alert.processName) -> \(alert.ipAddress):\(alert.port)")
             DispatchQueue.main.async {
                 self.lastAlert = alert

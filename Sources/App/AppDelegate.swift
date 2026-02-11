@@ -269,17 +269,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 
                 // Consider alert dismissed if:
                 // 1. No large LuLu window found, OR
-                // 2. Window size changed by more than 10px in either dimension (not strict, just detects dismiss)
+                // 2. Window disappeared (size went to nil means no LuLu alert window found)
                 var alertDismissed = (currentSize == nil)
-                
-                if let initial = self.initialLuLuWindowSize, let current = currentSize {
-                    let widthDiff = abs(initial.width - current.width)
-                    let heightDiff = abs(initial.height - current.height)
-                    if widthDiff > 10 || heightDiff > 10 {
-                        alertDismissed = true
-                        print("[DEBUG] Window size changed: \(initial.width)x\(initial.height) -> \(current.width)x\(current.height)")
-                    }
-                }
                 
                 print("[DEBUG] Monitor: size=\(currentSize?.width ?? 0)x\(currentSize?.height ?? 0), dismissed=\(alertDismissed), complete=\(analysisComplete)")
                 
