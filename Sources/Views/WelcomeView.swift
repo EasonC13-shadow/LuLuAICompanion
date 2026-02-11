@@ -376,16 +376,11 @@ struct WelcomeView: View {
     }
     
     private func complete() {
-        // Start monitoring
-        if monitor.accessibilityEnabled {
-            monitor.startMonitoring()
-        }
-        
         // Mark setup as complete
         UserDefaults.standard.set(true, forKey: "hasCompletedSetup")
         
+        // onComplete handles window closing and starting monitoring
         onComplete?()
-        dismiss()
     }
 }
 
