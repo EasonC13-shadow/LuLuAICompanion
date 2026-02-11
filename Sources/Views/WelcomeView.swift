@@ -130,7 +130,7 @@ struct WelcomeView: View {
                 Text("No API Key Found")
                     .font(.headline)
                 
-                Text("To use AI-powered analysis, you'll need a Claude API key from Anthropic.")
+                Text("To use AI-powered analysis, you'll need an API key. Get a free one from platform.3mate.io, or use your own Claude API key from Anthropic.")
                     .multilineTextAlignment(.center)
                     .foregroundColor(.secondary)
             }
@@ -165,17 +165,8 @@ struct WelcomeView: View {
             }
             
             HStack {
-                Link(destination: URL(string: "https://console.anthropic.com/")!) {
-                    HStack {
-                        Image(systemName: "arrow.up.right.square")
-                        Text("Get API Key from Anthropic")
-                    }
-                }
-                .font(.caption)
-                
-                Spacer()
-                
                 if !apiKey.isEmpty {
+                    Spacer()
                     Button("Verify Key") {
                         verifyKey()
                     }
@@ -186,14 +177,26 @@ struct WelcomeView: View {
             Divider()
             
             VStack(alignment: .leading, spacing: 8) {
-                Text("Options:")
+                Text("Don't have an API key?")
                     .font(.caption)
                     .fontWeight(.medium)
                 
-                Text("• Paste your API key above, or")
+                Link(destination: URL(string: "https://platform.3mate.io")!) {
+                    HStack {
+                        Image(systemName: "arrow.up.right.square")
+                        Text("Get a free key from LuLu AI Platform")
+                    }
+                }
+                .font(.caption)
+                
+                Text("Sign up at platform.3mate.io to get a free trial API key (starts with sk-3mate-)")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Text("• Run `claude setup-token` in Terminal to configure locally")
+                
+                Divider()
+                    .padding(.vertical, 4)
+                
+                Text("Already have a Claude API key from Anthropic? That works too!")
                     .font(.caption)
                     .foregroundColor(.secondary)
                 
@@ -203,7 +206,7 @@ struct WelcomeView: View {
                 Text("• Your key is stored securely in macOS Keychain")
                     .font(.caption)
                     .foregroundColor(.secondary)
-                Text("• You can manage keys later in Settings or via CLI")
+                Text("• You can manage keys later in Settings")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
