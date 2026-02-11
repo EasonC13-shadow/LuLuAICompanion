@@ -1,12 +1,21 @@
 import Foundation
-import Security
 
-/// Helper for API key storage using local JSON file
+/// Helper for API key storage using local JSON file with obfuscation
 /// Uses ~/Library/Application Support/LuLuAICompanion/keys.json
-/// Falls back to reading from Keychain for migration from older versions
+/// Keys are XOR-obfuscated so they're not plaintext in the file
 enum KeychainHelper {
     
-    private static let defaultService = "com.lulu-ai-companion"
+    // XOR obfuscation key (not cryptographically secure, just prevents casual snooping)
+    private static let obfuscationKey: [UInt8] = [
+        0x4A, 0x7B, 0x2E, 0x91, 0xD3, 0x58, 0xF6, 0x14,
+        0xA2, 0x6C, 0x3D, 0x87, 0xE5, 0x49, 0xB0, 0x72,
+        0x1F, 0xC8, 0x5A, 0x93, 0xD7, 0x46, 0xEB, 0x38,
+        0x84, 0x6F, 0x2B, 0xA1, 0xF3, 0x55, 0xC9, 0x17,
+        0x9E, 0x63, 0xD4, 0x48, 0xB7, 0x2A, 0xF1, 0x86,
+        0x3C, 0x75, 0xE9, 0x52, 0xAD, 0x41, 0xC6, 0x18,
+        0x9B, 0x67, 0xD2, 0x4E, 0xBF, 0x23, 0xFA, 0x85,
+        0x39, 0x74, 0xE8, 0x51, 0xAC, 0x40, 0xC5, 0x19
+    ]
     
     // MARK: - File Storage Path
     
@@ -17,6 +26,28 @@ enum KeychainHelper {
     
     private static var keysFile: URL {
         return storageDir.appendingPathComponent("keys.json")
+    }
+    
+    // MARK: - XOR Obfuscation
+    
+    private static func xorObfuscate(_ input: [UInt8]) -> [UInt8] {
+        var output = [UInt8](repeating: 0, count: input.count)
+        for i in 0..<input.count {
+            output[i] = input[i] ^ obfuscationKey[i % obfuscationKey.count]
+        }
+        return output
+    }
+    
+    private static func encode(_ value: String) -> String {
+        let bytes = Array(value.utf8)
+        let obfuscated = xorObfuscate(bytes)
+        return Data(obfuscated).base64EncodedString()
+    }
+    
+    private static func decode(_ encoded: String) -> String? {
+        guard let data = Data(base64Encoded: encoded) else { return nil }
+        let deobfuscated = xorObfuscate(Array(data))
+        return String(bytes: deobfuscated, encoding: .utf8)
     }
     
     // MARK: - JSON File Operations
@@ -32,9 +63,10 @@ enum KeychainHelper {
     private static func writeStore(_ store: [String: String]) {
         do {
             try FileManager.default.createDirectory(at: storageDir, withIntermediateDirectories: true)
-            let data = try JSONEncoder().encode(store)
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .prettyPrinted
+            let data = try encoder.encode(store)
             try data.write(to: keysFile, options: [.atomic])
-            // Set file permissions to owner-only (600)
             try FileManager.default.setAttributes(
                 [.posixPermissions: 0o600],
                 ofItemAtPath: keysFile.path
@@ -44,64 +76,38 @@ enum KeychainHelper {
         }
     }
     
-    // MARK: - Standard Operations
+    // MARK: - Public API
     
     static func save(key: String, value: String) {
         var store = readStore()
-        store[key] = value
+        store[key] = encode(value)
         writeStore(store)
     }
     
     static func get(key: String) -> String? {
-        // Try file first
         let store = readStore()
-        if let value = store[key], !value.isEmpty {
-            return value
-        }
-        
-        // Fall back to Keychain (migration from older versions)
-        if let value = getFromKeychain(service: defaultService, key: key), !value.isEmpty {
-            // Migrate to file storage
-            var store = readStore()
-            store[key] = value
-            writeStore(store)
-            return value
-        }
-        
-        return nil
+        guard let encoded = store[key], !encoded.isEmpty else { return nil }
+        return decode(encoded)
     }
     
     static func delete(key: String) {
         var store = readStore()
         store.removeValue(forKey: key)
         writeStore(store)
-        // Also clean up Keychain if it exists there
-        deleteFromKeychain(service: defaultService, key: key)
     }
     
-    // MARK: - Cross-Service Operations (for reading OpenClaw's keychain)
+    // MARK: - Cross-Service (no-op, kept for API compat)
     
     static func save(service: String, key: String, value: String) {
-        if service == defaultService {
-            save(key: key, value: value)
-        } else {
-            saveToKeychain(service: service, key: key, value: value)
-        }
+        save(key: key, value: value)
     }
     
     static func get(service: String, key: String) -> String? {
-        if service == defaultService {
-            return get(key: key)
-        }
-        return getFromKeychain(service: service, key: key)
+        return get(key: key)
     }
     
     static func delete(service: String, key: String) {
-        if service == defaultService {
-            delete(key: key)
-        } else {
-            deleteFromKeychain(service: service, key: key)
-        }
+        delete(key: key)
     }
     
     // MARK: - Check Own Keys
@@ -112,47 +118,5 @@ enum KeychainHelper {
             if get(key: "claude_api_key_\(i)") != nil { return true }
         }
         return false
-    }
-    
-    // MARK: - Legacy Keychain Operations (for migration & cross-service)
-    
-    private static func saveToKeychain(service: String, key: String, value: String) {
-        guard let data = value.data(using: .utf8) else { return }
-        deleteFromKeychain(service: service, key: key)
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key,
-            kSecAttrService as String: service,
-            kSecValueData as String: data,
-            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlocked
-        ]
-        SecItemAdd(query as CFDictionary, nil)
-    }
-    
-    private static func getFromKeychain(service: String, key: String) -> String? {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key,
-            kSecAttrService as String: service,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne
-        ]
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess,
-              let data = result as? Data,
-              let value = String(data: data, encoding: .utf8) else {
-            return nil
-        }
-        return value
-    }
-    
-    private static func deleteFromKeychain(service: String, key: String) {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrAccount as String: key,
-            kSecAttrService as String: service
-        ]
-        SecItemDelete(query as CFDictionary)
     }
 }
